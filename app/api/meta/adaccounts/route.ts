@@ -5,10 +5,28 @@ import {reader, selectedData, MetaReadError, metaDetail} from '@/lib/meta-data';
 const headers = {'Cache-Control': 'no-store'};
 type Account = {id: string; name?: string; account_status?: number; business?: {name?: string}};
 
+const FIELDS = 'id,name,account_status,business{name}';
+type Biz = {name?: string; owned_ad_accounts?: {data: Account[]}; client_ad_accounts?: {data: Account[]}};
+
+// Contas diretas do usuário + contas que chegam pelos Gerenciadores de Negócios (próprias e de clientes).
 async function list() {
   const api = await reader();
-  const r = await api.get<{data: Account[]}>('me/adaccounts', {fields: 'id,name,account_status,business{name}', limit: '200'});
-  return r.data.map(a => ({id: a.id, name: a.name || a.id, active: a.account_status === 1, business: a.business?.name || null}));
+  const all = new Map<string, {id: string; name: string; active: boolean; business: string | null}>();
+  const add = (a: Account, biz?: string) => {
+    if (!all.has(a.id)) all.set(a.id, {id: a.id, name: a.name || a.id, active: a.account_status === 1, business: a.business?.name || biz || null});
+  };
+  const direct = await api.get<{data: Account[]}>('me/adaccounts', {fields: FIELDS, limit: '200'});
+  direct.data.forEach(a => add(a));
+  try {
+    const biz = await api.get<{data: Biz[]}>('me/businesses', {fields: `name,owned_ad_accounts.limit(100){${FIELDS}},client_ad_accounts.limit(100){${FIELDS}}`, limit: '50'});
+    for (const b of biz.data) {
+      b.owned_ad_accounts?.data.forEach(a => add(a, b.name));
+      b.client_ad_accounts?.data.forEach(a => add(a, b.name));
+    }
+  } catch {
+    // Sem business_management: fica só com as contas diretas.
+  }
+  return [...all.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function GET() {
