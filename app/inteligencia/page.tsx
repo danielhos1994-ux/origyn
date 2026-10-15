@@ -2,6 +2,7 @@ import {ownerAccess, activeClient} from '@/lib/access';
 import {classifierConfigured, classifierName} from '@/lib/classifier';
 import {loadInsights, parseFilters, PERIODS, NETWORKS, CATEGORY_LABEL, ACTION_LABEL, safeLink, type TopicRow, type Example} from '@/lib/insights';
 import RefreshButton from './refresh-button';
+import {DOUBT_CATEGORIES} from '@/lib/brand/peliculas-facil';
 export const dynamic = 'force-dynamic';
 export const metadata = {title: 'Inteligência de comentários | Origyn'};
 
@@ -19,6 +20,7 @@ function Quote({c}: {c: Example}) {
         {c.author} · {c.platform} · {day(c.date)}
         {link && <> · <a href={link} target="_blank" rel="noopener noreferrer">ver publicação</a></>}
       </footer>
+      {c.reply && <div className="ix-reply"><span>Resposta sugerida</span><p>{c.reply}</p></div>}
     </blockquote>
   );
 }
@@ -57,6 +59,8 @@ export default async function Page({searchParams}: {searchParams: Promise<{dias?
   const hasKey = classifierConfigured();
   const aiName = classifierName();
   const cat = (k: string) => data.byCategory.find(c => c.category === k)?.n || 0;
+  const doubts = DOUBT_CATEGORIES.reduce((n, k) => n + cat(k), 0);
+  const act = (k: string) => data.actions.find(a => a.action === k)?.n || 0;
   const sentTotal = data.sentiment.positivo + data.sentiment.neutro + data.sentiment.negativo;
   const maxCat = Math.max(1, ...data.byCategory.map(c => c.n));
   const href = (d: string, r: string) => `/inteligencia?dias=${d}&rede=${encodeURIComponent(r)}`;
@@ -95,14 +99,16 @@ export default async function Page({searchParams}: {searchParams: Promise<{dias?
         <>
           <section className="ix-kpis" aria-label="Resumo">
             <div><span>Comentários</span><strong>{fmt(data.total)}</strong><small>{data.pending ? `${fmt(data.pending)} aguardando classificação` : 'todos classificados'}</small></div>
-            <div><span>Dúvidas</span><strong>{fmt(cat('duvida'))}</strong><small>{pct(cat('duvida'), data.classified)}% dos classificados</small></div>
-            <div><span>Reclamações</span><strong>{fmt(cat('reclamacao'))}</strong><small>{pct(cat('reclamacao'), data.classified)}% dos classificados</small></div>
+            <div><span>Dúvidas</span><strong>{fmt(doubts)}</strong><small>{pct(doubts, data.classified)}% dos classificados</small></div>
+            <div><span>Negativos</span><strong>{fmt(cat('negativo'))}</strong><small>{pct(cat('negativo'), data.classified)}% · ocultar pelo manual</small></div>
             <div><span>Sentimento</span><strong>{pct(data.sentiment.positivo, sentTotal)}%</strong><small>positivo · {pct(data.sentiment.negativo, sentTotal)}% negativo</small></div>
           </section>
 
+          <p className="ix-actions">Pelo manual: <strong>{fmt(act('responder'))}</strong> responder · <strong>{fmt(act('ocultar'))}</strong> ocultar · <strong>{fmt(act('revisar'))}</strong> revisar · <strong>{fmt(act('ignorar'))}</strong> ignorar. Nada é enviado nesta fase.</p>
+
           <div className="ix-grid">
             <Ranking title="Maiores dúvidas" rows={data.doubts} empty="Nenhuma dúvida classificada no período." />
-            <Ranking title="Maiores queixas" rows={data.complaints} empty="Nenhuma reclamação classificada no período." />
+            <Ranking title="Maiores queixas e críticas" rows={data.complaints} empty="Nenhum comentário negativo no período." />
           </div>
 
           <div className="ix-grid">
@@ -126,7 +132,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{dias?
                 <ul className="ix-attn">
                   {data.attention.map(c => (
                     <li key={c.id}>
-                      <div className="ix-tags"><span>{CATEGORY_LABEL[c.category] || c.category}</span>{c.action && <span>Sugestão: {ACTION_LABEL[c.action] || c.action}</span>}</div>
+                      <div className="ix-tags"><span>{CATEGORY_LABEL[c.category] || c.category}</span>{c.action && <span>Ação: {ACTION_LABEL[c.action] || c.action}</span>}{!!c.support && <span>Tratar em privado</span>}</div>
                       <Quote c={c} />
                     </li>
                   ))}

@@ -4,6 +4,9 @@
 - Somente **comentários** do Instagram e do Facebook: leitura, classificação, resposta e ocultação.
 - **Sem DMs.** Não implementar leitura nem envio de mensagens diretas, nem pedir permissões de mensagens (`pages_messaging`, `instagram_manage_messages`).
 
+## Manual da Películas Fácil (regra principal)
+`lib/brand/peliculas-facil.ts` contém o manual de respostas e moderação (versão 15/10/2026): categorias, ação por tipo, temas fechados, respostas padrão e CTA por rede. A ação (responder/ocultar/revisar/ignorar) é aplicada no código a partir da categoria; confiança < 0,6 vai para revisão; no Facebook a resposta nunca menciona DM, Messenger ou link da bio. O texto da aba "Manual da marca" do painel entra como notas adicionais.
+
 ## Hospedagem (desde 15/10/2026)
 Cloudflare Workers + D1 na conta do proprietário, publicado a partir deste repositório (Workers Builds).
 - Build: `pnpm build` · Deploy: `pnpm run deploy` (aplica migrações D1 e publica).

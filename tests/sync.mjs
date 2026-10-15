@@ -26,7 +26,7 @@ mockFetch=async(url,options={})=>{
   anthropicCalls++;assert.equal(options.method,'POST');assert.equal(options.headers['x-api-key'],'sk-test');const body=JSON.parse(options.body);lastAnthropicBody=body;
   assert.equal(body.tool_choice.name,'registrar_classificacoes');assert.ok(body.messages[0].content.includes('<comentarios>'));
   const ids=JSON.parse(body.messages[0].content.split('<comentarios>')[1].split('</comentarios>')[0]).map(c=>c.id);
-  return Response.json({content:[{type:'tool_use',name:'registrar_classificacoes',input:{itens:ids.map(id=>({id,category:id.includes('q')?'duvida':id.includes('bad')?'reclamacao':'elogio',sentiment:id.includes('bad')?'negativo':'positivo',topic:id.includes('q')?'Preço do kit':'atendimento',summary:'resumo',priority:id.includes('bad')?'alta':'baixa',suggested_action:id.includes('bad')?'revisar':'responder',confidence:0.9}))}}]});
+  return Response.json({content:[{type:'tool_use',name:'registrar_classificacoes',input:{itens:ids.map(id=>({id,category:id.includes('q')?'duvida_produto':id.includes('bad')?'negativo':'elogio',sentiment:id.includes('bad')?'negativo':'positivo',topic:id.includes('q')?'Preço do kit':id.includes('bad')?'prazo e entrega':'resultado / elogio',summary:'resumo',priority:'media',needs_support:id.includes('bad'),suggested_reply:id.includes('bad')?'Sentimos muito':'O valor varia conforme o modelo 💙 Nos chame no DM com o modelo e o ano.',confidence:0.9}))}}]});
  }
  assert.equal(options.method,undefined);metaCalls.push(u.pathname);
  const path=u.pathname.replace(/^\/v\d+\.0\//,'');
@@ -43,7 +43,7 @@ assert.equal(r.newComments,4);assert.equal(r.classified,0);assert.equal(r.status
 const own=sql.prepare("SELECT id FROM social_comments WHERE is_own=1 ORDER BY id").all().map(x=>x.id);assert.deepEqual(own,['fb_own','ig_own']);
 assert.equal(sql.prepare("SELECT parent_id FROM social_comments WHERE id='ig_own'").get().parent_id,'ig_q2');
 // 1b) Modo gratuito: Workers AI classifica quando não há chave da Anthropic.
-let aiCalls=0;runtimeEnv.AI={async run(model,input){aiCalls++;assert.equal(model,'@cf/meta/llama-3.3-70b-instruct-fp8-fast');assert.equal(input.response_format.type,'json_schema');const ids=JSON.parse(input.messages[1].content.split('<comentarios>')[1].split('</comentarios>')[0]).map(c=>c.id);return {response:{itens:ids.map(id=>({id,category:'duvida',sentiment:'neutro',topic:'Preço do kit',summary:'s',priority:'baixa',suggested_action:'responder',confidence:0.8}))}};}};
+let aiCalls=0;runtimeEnv.AI={async run(model,input){aiCalls++;assert.equal(model,'@cf/meta/llama-3.3-70b-instruct-fp8-fast');assert.equal(input.response_format.type,'json_schema');const ids=JSON.parse(input.messages[1].content.split('<comentarios>')[1].split('</comentarios>')[0]).map(c=>c.id);return {response:{itens:ids.map(id=>({id,category:'duvida_produto',sentiment:'neutro',topic:'Preço do kit',summary:'s',priority:'baixa',needs_support:false,suggested_reply:'Nos chame 💙',confidence:0.8}))}};}};
 r=await sync.runSync('pf','cron');assert.equal(r.classified,2);assert.equal(aiCalls,1);assert.equal(r.status,'ok');
 assert.equal(sql.prepare("SELECT model FROM social_comments WHERE id='fb_q1'").get().model,'@cf/meta/llama-3.3-70b-instruct-fp8-fast');
 // Cota gratuita esgotada: mensagem clara, coleta preservada.
@@ -55,7 +55,9 @@ delete runtimeEnv.AI;
 runtimeEnv.ANTHROPIC_API_KEY='sk-test';
 r=await sync.runSync('pf','cron');assert.equal(r.newComments,0);assert.equal(r.classified,2);assert.equal(r.status,'ok');assert.equal(anthropicCalls,1);
 assert.ok(!JSON.stringify(lastAnthropicBody).includes('Chamamos no direct'));assert.ok(lastAnthropicBody.messages[0].content.includes('Tom cordial.'));
-assert.equal(sql.prepare("SELECT topic FROM social_comments WHERE id='fb_q1'").get().topic,'preço do kit');
+const q1=sql.prepare("SELECT topic,suggested_action,suggested_reply FROM social_comments WHERE id='fb_q1'").get();assert.equal(q1.topic,'preço do kit');assert.equal(q1.suggested_action,'responder');
+assert.ok(!/DM/i.test(q1.suggested_reply),'Facebook nunca menciona DM');assert.ok(q1.suggested_reply.includes('Nos chame'));
+assert.ok(/no DM/.test(sql.prepare("SELECT suggested_reply FROM social_comments WHERE id='ig_q2'").get().suggested_reply),'Instagram pode usar DM');
 // 3) Novo comentário: idempotente, só o novo vai para a IA.
 fbCount=3;r=await sync.runSync('pf','cron');assert.equal(r.newComments,1);assert.equal(r.classified,1);assert.equal(anthropicCalls,2);
 assert.equal(sql.prepare('SELECT COUNT(*) n FROM social_comments').get().n,5);
@@ -73,7 +75,7 @@ sql.prepare("INSERT INTO sync_runs(id,tenant,trigger,started_at,status) VALUES('
 r=await sync.runSync('pf','cron');assert.equal(r.status,'ignorado');sql.exec("DELETE FROM sync_runs WHERE id='lock'");
 // 6) Relatório agrupa e ignora comentários próprios.
 const ins=await insights.loadInsights('pf','30','todas');
-assert.equal(ins.total,3);assert.equal(ins.doubts[0].topic,'preço do kit');assert.equal(ins.complaints[0].topic,'atendimento');assert.equal(ins.attention.length,1);assert.equal(ins.attention[0].id,'fb_bad1');
+assert.equal(ins.total,3);assert.equal(ins.doubts[0].topic,'preço do kit');assert.equal(ins.complaints[0].topic,'prazo e entrega');assert.equal(ins.attention.length,1);assert.equal(ins.attention[0].id,'fb_bad1');
 const igOnly=await insights.loadInsights('pf','30','Instagram');assert.equal(igOnly.total,1);
 // 7) Rota manual protegida.
 await mod('lib/access.ts').ownerAccess(true);
@@ -81,4 +83,10 @@ const post=(o='https://origyn.example.workers.dev')=>new Request('https://origyn
 assert.equal((await coleta.POST(post('https://evil.test'))).status,403);
 assert.equal((await coleta.POST(post())).status,200);
 user=null;assert.equal((await coleta.POST(post())).status,403);
+const bad=sql.prepare("SELECT suggested_action,suggested_reply,needs_support,priority FROM social_comments WHERE id='fb_bad1'").get();assert.equal(bad.suggested_action,'ocultar');assert.equal(bad.suggested_reply,null);assert.equal(bad.needs_support,1);assert.equal(bad.priority,'alta');
+const cls=mod('lib/classifier.ts');
+let v=cls.applyPolicy({id:'x',category:'duvida_produto',topic:'tema inventado',sentiment:'neutro',summary:'',priority:'baixa',suggested_reply:'Oi',confidence:0.4},'Instagram');assert.equal(v.action,'revisar');assert.equal(v.topic,'outros');assert.equal(v.reply,'');
+v=cls.applyPolicy({id:'x',category:'invalida',confidence:0.9},'Instagram');assert.equal(v.category,'ambiguo');assert.equal(v.action,'revisar');assert.equal(v.priority,'alta');
+v=cls.applyPolicy({id:'x',category:'interesse_compra',topic:'preço do kit',confidence:0.95,suggested_reply:'Que bom! 💙 Acesse o link da bio ou chame pelo Messenger.'},'Facebook');assert.ok(!/link da bio|messenger/i.test(v.reply));
+console.log('PASS: manual da Películas Fácil — ações por tipo, revisão em ambiguidade, temas fechados, CTA por rede, suporte privado para problema real.');
 console.log('PASS: incremental FB+IG collection, own-reply detection, idempotency, Claude classification (untrusted data, no own comments), AI failure isolation, run lock, insights grouping and protected manual sync.');
