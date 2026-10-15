@@ -71,7 +71,7 @@ export async function loadInsights(tenant: string, dias: string, rede: string): 
     return out;
   }
 
-  const attention = (await d.prepare(`SELECT ${cols}, c.category FROM social_comments c LEFT JOIN social_posts p ON p.tenant=c.tenant AND p.id=c.post_id WHERE ${where} AND c.priority='alta' ORDER BY c.created_at DESC LIMIT 12`).bind(...args).all<Example & {category: string}>()).results;
+  const attention = (await d.prepare(`SELECT ${cols}, c.category FROM social_comments c LEFT JOIN social_posts p ON p.tenant=c.tenant AND p.id=c.post_id WHERE ${where} AND c.priority='alta' AND c.classified_at IS NOT NULL ORDER BY c.created_at DESC LIMIT 12`).bind(...args).all<Example & {category: string}>()).results;
   const actions = (await d.prepare(`SELECT c.suggested_action action, COUNT(*) n FROM social_comments c WHERE ${where} AND c.suggested_action IS NOT NULL GROUP BY c.suggested_action ORDER BY n DESC`).bind(...args).all<{action: string; n: number}>()).results;
   const lastRun = await d.prepare('SELECT status, finished_at, started_at, new_comments, classified, message FROM sync_runs WHERE tenant=? ORDER BY started_at DESC LIMIT 1').bind(tenant).first<Insights['lastRun'] & object>();
   const first = await d.prepare('SELECT MIN(created_at) m FROM social_comments WHERE tenant=? AND is_own=0').bind(tenant).first<{m: string | null}>();
