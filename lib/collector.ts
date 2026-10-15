@@ -30,6 +30,9 @@ async function upsertPost(tenant: string, p: {id: string; platform: string; text
 }
 
 async function insertComment(tenant: string, c: {id: string; platform: string; postId: string; parentId?: string | null; authorName: string; authorId?: string | null; text: string; createdAt: string; isOwn: boolean}) {
+  // A Meta repete o mesmo comentário em publicações ligadas (ids diferentes): guarda só uma vez.
+  const dup = await db().prepare('SELECT 1 FROM social_comments WHERE tenant=? AND platform=? AND text=? AND created_at=? AND id<>? LIMIT 1').bind(tenant, c.platform, c.text.slice(0, 4000), c.createdAt, c.id).first();
+  if (dup) return 0;
   const r = await db()
     .prepare('INSERT OR IGNORE INTO social_comments(tenant,id,platform,post_id,parent_id,author_name,author_id,text,created_at,collected_at,is_own) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
     .bind(tenant, c.id, c.platform, c.postId, c.parentId ?? null, c.authorName.slice(0, 200), c.authorId ?? null, c.text.slice(0, 4000), c.createdAt, Date.now(), c.isOwn ? 1 : 0)

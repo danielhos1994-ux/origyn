@@ -3,7 +3,7 @@
 // Nesta fase nada é executado na rede social: ação e resposta ficam registradas como sugestão.
 import {env} from 'cloudflare:workers';
 import {db} from '@/lib/db';
-import {CATEGORIES, CATEGORY_ACTION, TOPICS, POLICY, enforceChannel, type Category} from '@/lib/brand/peliculas-facil';
+import {CATEGORIES, CATEGORY_ACTION, TOPICS, POLICY, enforceChannel, enforceEmoji, looksPostPurchaseProblem, type Category} from '@/lib/brand/peliculas-facil';
 
 export {CATEGORIES};
 export const SENTIMENTS = ['positivo', 'neutro', 'negativo'] as const;
@@ -123,16 +123,25 @@ async function callClaude(model: string, items: Pending[], manual: string): Prom
 }
 
 // Aplica as regras do manual de forma determinística sobre o retorno da IA.
-export function applyPolicy(o: Item, platform: string) {
+export function applyPolicy(o: Item, platform: string, text = '') {
   const category = clean(o.category, CATEGORIES, 'ambiguo') as Category;
   const confidence = Math.max(0, Math.min(1, Number(o.confidence) || 0));
   let action: string = CATEGORY_ACTION[category];
   if (confidence < MIN_CONFIDENCE && category !== 'spam') action = 'revisar';
-  const support = !!o.needs_support && category === 'negativo';
+  let support = !!o.needs_support && category === 'negativo';
+  // Rede de segurança: cliente que já comprou relatando problema nunca recebe resposta automática de pré-venda.
+  if (action === 'responder' && category !== 'elogio' && looksPostPurchaseProblem(text)) {
+    action = 'revisar';
+    support = true;
+  }
   let priority = clean(o.priority, PRIORITIES, 'baixa');
   if (support || category === 'ambiguo') priority = 'alta';
   const topic = (TOPICS as readonly string[]).includes(String(o.topic).toLowerCase().trim()) ? String(o.topic).toLowerCase().trim() : 'outros';
-  const reply = action === 'responder' ? enforceChannel(String(o.suggested_reply || '').trim(), platform).slice(0, 600) : '';
+  let reply = action === 'responder' ? enforceEmoji(enforceChannel(String(o.suggested_reply || '').trim(), platform)).slice(0, 600) : '';
+  if (/vamos verificar/i.test(reply)) {
+    action = 'revisar';
+    reply = '';
+  }
   return {category, action, confidence, support, priority, topic, reply, sentiment: clean(o.sentiment, SENTIMENTS, 'neutro'), summary: String(o.summary || '').slice(0, 200)};
 }
 
@@ -158,7 +167,7 @@ export async function classifyPending(tenant = 'pf', limit = DEFAULT_LIMIT): Pro
         const o = byId.get(c.id);
         if (!o) return db().prepare('UPDATE social_comments SET classify_error=? WHERE tenant=? AND id=?').bind('Sem retorno da IA', tenant, c.id);
         classified++;
-        const v = applyPolicy(o, c.platform);
+        const v = applyPolicy(o, c.platform, c.text);
         return db()
           .prepare('UPDATE social_comments SET category=?,sentiment=?,topic=?,summary=?,priority=?,suggested_action=?,suggested_reply=?,needs_support=?,confidence=?,model=?,classified_at=?,classify_error=NULL WHERE tenant=? AND id=?')
           .bind(v.category, v.sentiment, v.topic, v.summary, v.priority, v.action, v.reply || null, v.support ? 1 : 0, v.confidence, p.model, now, tenant, c.id);
