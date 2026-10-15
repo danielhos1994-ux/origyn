@@ -71,6 +71,13 @@
       "when": 1792079744612,
       "tag": "0009_fila_aprovacao",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792082139899,
+      "tag": "0010_anuncios",
+      "breakpoints": true
     }
   ]
 }

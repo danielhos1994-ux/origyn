@@ -32,6 +32,7 @@ function Card({item, onDone}: {item: QueueItem; onDone: (id: string) => void}) {
     <article className="aq-card">
       <header className="aq-meta">
         <span className="aq-net">{item.platform}</span>
+        {item.ad_name && <span className="aq-flag" title={item.ad_name}>Anúncio</span>}
         <span>{CAT[item.category || ''] || item.category}</span>
         {item.topic && item.topic !== (CAT[item.category || ''] || '').toLowerCase() && <span>{item.topic}</span>}
         {item.priority === 'alta' && <span className="aq-flag">Prioridade alta</span>}

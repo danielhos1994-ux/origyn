@@ -66,6 +66,20 @@ sql.exec("UPDATE social_posts SET created_at='2026-01-01T00:00:00.000Z'");
 const before=metaCalls.length;
 mockFetch=((orig)=>async(url,o)=>{const u=new URL(url);if(u.pathname.endsWith('/posts'))return Response.json({data:[{id:'555_1',message:'Post FB',created_time:'2026-01-01T00:00:00Z',reactions:{summary:{total_count:5}},comments:{summary:{total_count:3}}}]});if(u.pathname.endsWith('/media'))return Response.json({data:[{id:'777',caption:'Post IG',timestamp:'2026-01-01T00:00:00Z',like_count:3,comments_count:1}]});return orig(url,o);})(mockFetch);
 r=await sync.runSync('pf','cron');assert.equal(r.newComments,0);assert.ok(metaCalls.slice(before).some(p=>p.includes('comments')),'posts mais novos sempre relidos');
+// 4b) Anúncios: lê anúncios ativos da conta escolhida e coleta comentários de FB e IG, marcados como anúncio.
+sql.exec("UPDATE meta_client_data SET ad_account_id='act_42',ad_account_name='PF Ads'");
+const adOrig=mockFetch;let adsQuery=null;
+mockFetch=async(url,o)=>{const u=new URL(url);const path=u.pathname.replace(/^\/v\d+\.0\//,'');
+ if(path==='act_42/ads'){adsQuery=u.searchParams;assert.ok(u.searchParams.get('appsecret_proof'));return Response.json({data:[{id:'ad1',name:'Campanha Onix',creative:{effective_object_story_id:'555_9',effective_instagram_media_id:'888'}},{id:'ad2',name:'Dup',creative:{effective_object_story_id:'555_9'}},{id:'ad3',name:'Outra página',creative:{effective_object_story_id:'999_1'}}]});}
+ if(path==='555_9')return Response.json({id:'555_9',message:'Anúncio FB',created_time:'2026-01-01T00:00:00Z',comments:{summary:{total_count:1}}});
+ if(path==='555_9/comments')return Response.json({data:[{id:'adfb1',message:'Quero!',from:{id:'7',name:'Leo'},created_time:recent}]});
+ if(path==='888')return Response.json({id:'888',caption:'Anúncio IG',timestamp:'2026-01-01T00:00:00Z',comments_count:1});
+ if(path==='888/comments')return Response.json({data:[{id:'adig1',text:'Tem pro Gol?',username:'zeca',timestamp:recent}]});
+ if(path==='999_1')throw new Error('não deve buscar post de outra página');
+ return adOrig(url,o);};
+r=await sync.runSync('pf','cron');assert.equal(r.newComments,2);assert.equal(adsQuery.get('effective_status'),'["ACTIVE"]');
+assert.equal(sql.prepare("SELECT ad_name FROM social_posts WHERE id='888'").get().ad_name,'Campanha Onix');
+mockFetch=adOrig;sql.exec("UPDATE meta_client_data SET ad_account_id=NULL");
 // 5) Erro da IA não quebra a coleta; trava evita execuções simultâneas.
 sql.exec("UPDATE social_comments SET classified_at=NULL WHERE id='fb_q1'");
 const okFetch=mockFetch;mockFetch=async(url,o)=>new URL(url).origin==='https://api.anthropic.com'?Response.json({error:{type:'overloaded_error',message:'Overloaded'}},{status:529}):okFetch(url,o);
@@ -75,8 +89,8 @@ sql.prepare("INSERT INTO sync_runs(id,tenant,trigger,started_at,status) VALUES('
 r=await sync.runSync('pf','cron');assert.equal(r.status,'ignorado');sql.exec("DELETE FROM sync_runs WHERE id='lock'");
 // 6) Relatório agrupa e ignora comentários próprios.
 const ins=await insights.loadInsights('pf','30','todas');
-assert.equal(ins.total,3);assert.equal(ins.doubts[0].topic,'preço do kit');assert.equal(ins.complaints[0].topic,'prazo e entrega');assert.equal(ins.attention.length,1);assert.equal(ins.attention[0].id,'fb_bad1');
-const igOnly=await insights.loadInsights('pf','30','Instagram');assert.equal(igOnly.total,1);
+assert.equal(ins.total,5);assert.equal(ins.doubts[0].topic,'preço do kit');assert.equal(ins.complaints[0].topic,'prazo e entrega');assert.equal(ins.attention.length,1);assert.equal(ins.attention[0].id,'fb_bad1');
+const igOnly=await insights.loadInsights('pf','30','Instagram');assert.equal(igOnly.total,2);
 // 7) Rota manual protegida.
 await mod('lib/access.ts').ownerAccess(true);
 const post=(o='https://origyn.example.workers.dev')=>new Request('https://origyn.example.workers.dev/api/coleta',{method:'POST',headers:{Origin:o}});

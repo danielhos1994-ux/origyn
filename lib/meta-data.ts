@@ -81,4 +81,4 @@ export async function importPage(page:PageAccount,api:Awaited<ReturnType<typeof 
  }
  snapshot.warnings=[...new Set(warnings)];return snapshot;
 }
-export async function selectedData(){return db().prepare('SELECT page_id,page_name,instagram_id,instagram_username,snapshot,synced_at FROM meta_client_data WHERE tenant=?').bind('pf').first<{page_id:string;page_name:string;instagram_id:string|null;instagram_username:string|null;snapshot:string|null;synced_at:number|null}>();}
+export async function selectedData(){return db().prepare('SELECT page_id,page_name,instagram_id,instagram_username,snapshot,synced_at,ad_account_id,ad_account_name FROM meta_client_data WHERE tenant=?').bind('pf').first<{page_id:string;page_name:string;instagram_id:string|null;instagram_username:string|null;snapshot:string|null;synced_at:number|null;ad_account_id:string|null;ad_account_name:string|null}>();}

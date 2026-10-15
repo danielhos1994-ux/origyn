@@ -11,7 +11,7 @@ const FB_FORBIDDEN = /\b(dm|direct|messenger|inbox)\b|link (da|na) bio/i;
 export type QueueItem = {
   id: string; platform: string; text: string; author: string; date: string; permalink: string | null;
   category: string | null; topic: string | null; action: string | null; reply: string | null;
-  priority: string | null; support: number; parent_id: string | null;
+  priority: string | null; support: number; parent_id: string | null; ad_name: string | null;
   handled_status: string | null; handled_at: number | null; handled_reply: string | null; handled_error: string | null;
 };
 
@@ -23,7 +23,7 @@ export async function loadQueue(tenant: string, view: 'pendentes' | 'concluidos'
   const order = view === 'pendentes'
     ? "CASE c.priority WHEN 'alta' THEN 0 WHEN 'media' THEN 1 ELSE 2 END, c.created_at DESC"
     : 'c.handled_at DESC';
-  const rows = await db().prepare(`SELECT c.id,c.platform,c.text,c.author_name author,c.created_at date,p.permalink,c.category,c.topic,c.suggested_action action,c.suggested_reply reply,c.priority,c.needs_support support,c.parent_id,c.handled_status,c.handled_at,c.handled_reply,c.handled_error FROM social_comments c LEFT JOIN social_posts p ON p.tenant=c.tenant AND p.id=c.post_id WHERE c.tenant=? AND c.is_own=0 AND ${where} ORDER BY ${order} LIMIT 100`).bind(tenant).all<QueueItem>();
+  const rows = await db().prepare(`SELECT c.id,c.platform,c.text,c.author_name author,c.created_at date,p.permalink,c.category,c.topic,c.suggested_action action,c.suggested_reply reply,c.priority,c.needs_support support,c.parent_id,p.ad_name,c.handled_status,c.handled_at,c.handled_reply,c.handled_error FROM social_comments c LEFT JOIN social_posts p ON p.tenant=c.tenant AND p.id=c.post_id WHERE c.tenant=? AND c.is_own=0 AND ${where} ORDER BY ${order} LIMIT 100`).bind(tenant).all<QueueItem>();
   const counts = await db().prepare("SELECT SUM(CASE WHEN handled_status IS NULL AND classified_at IS NOT NULL AND suggested_action IN ('responder','ocultar','revisar') AND created_at>=? THEN 1 ELSE 0 END) pendentes, SUM(CASE WHEN handled_status IS NOT NULL THEN 1 ELSE 0 END) concluidos FROM social_comments WHERE tenant=? AND is_own=0").bind(since, tenant).first<{pendentes: number | null; concluidos: number | null}>();
   return {items: rows.results, pendentes: counts?.pendentes || 0, concluidos: counts?.concluidos || 0};
 }
