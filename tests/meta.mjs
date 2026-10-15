@@ -55,7 +55,7 @@ mockFetch=async(url,options)=>{
  const path=u.pathname.replace(/^\/v\d+\.0\//,'');
  if(path==='me/accounts')return Response.json({data:[{id:'555',name:'PF authorized',access_token:'page-token',instagram_business_account:{id:'666',username:'pf'}}]});
  if(path==='555'){if(rejectProfile)return Response.json({error:{code:190}},{status:400});return Response.json({id:'555',name:'PF authorized',followers_count:42});}
- if(path==='555/posts')return Response.json({data:[{id:'555_1',message:'Real post',created_time:'2026-09-30T00:00:00Z',likes:{summary:{total_count:2}},comments:{summary:{total_count:1}}}]});
+ if(path==='555/posts'&&u.searchParams.get('fields').includes('reactions'))return Response.json({error:{code:100,message:'Tried accessing nonexisting field (reactions)'}},{status:400});if(path==='555/posts')return Response.json({data:[{id:'555_1',message:'Real post',created_time:'2026-09-30T00:00:00Z',likes:{summary:{total_count:2}},comments:{summary:{total_count:1}}}]});
  if(path==='555_1/comments')return Response.json({data:[{id:'comment1',message:'Read only',created_time:'2026-09-30T00:00:00Z',from:{name:'Reader'}}]});
  if(path==='666')return Response.json({id:'666',username:'pf',followers_count:12});
  if(path==='666/media')return Response.json({data:[{id:'777',caption:'Instagram post',timestamp:'2026-09-30T00:00:00Z'}]});
@@ -67,7 +67,7 @@ r=await pagesRoute.GET();assert.equal(r.status,200);let listing=await r.json();a
 assert.equal((await pagesRoute.POST(selectRequest('999'))).status,403);
 assert.equal((await pagesRoute.POST(selectRequest('555'))).status,200);
 const syncRequest=()=>new Request(origin+'/api/meta/sync',{method:'POST',headers:{Origin:origin}});
-r=await syncRoute.POST(syncRequest());assert.equal(r.status,200);let synced=await r.json();assert.equal(synced.snapshot.posts.length,2);assert.equal(synced.snapshot.posts[0].comments[0].text,'Read only');assert.equal(synced.snapshot.warnings.length,1);assert.ok(!JSON.stringify(synced).includes('page-token'));
+r=await syncRoute.POST(syncRequest());assert.equal(r.status,200);let synced=await r.json();assert.equal(synced.snapshot.posts.length,2);assert.equal(synced.snapshot.posts[0].comments[0].text,'Read only');assert.equal(synced.snapshot.warnings.length,2);assert.ok(synced.snapshot.warnings.some(w=>w.includes('[Meta 100: Tried accessing nonexisting field (reactions)]')));assert.ok(!synced.snapshot.warnings.join().includes('page-token'));assert.ok(!JSON.stringify(synced).includes('page-token'));
 await syncRoute.POST(syncRequest());assert.equal(sql.prepare('SELECT count(*) n FROM meta_client_data').get().n,1);
 const prior=sql.prepare('SELECT snapshot FROM meta_client_data').get().snapshot;
 rejectProfile=true;assert.equal((await syncRoute.POST(syncRequest())).status,503);assert.equal(sql.prepare('SELECT snapshot FROM meta_client_data').get().snapshot,prior);
