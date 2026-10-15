@@ -11,7 +11,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "deploy": "wrangler d1 migrations apply DB --remote --config wrangler.jsonc && wrangler deploy && node tools/ensure-secret.mjs",
-    "test": "node tests/auth.mjs && node tests/access.mjs && node tests/meta.mjs"
+    "test": "node tests/auth.mjs && node tests/access.mjs && node tests/meta.mjs && node tests/sync.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

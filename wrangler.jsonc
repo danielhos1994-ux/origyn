@@ -4,10 +4,12 @@
   // segredo no painel da Cloudflare (Workers > origyn > Settings > Variables and Secrets).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "origyn",
-  "main": "vinext/server/fetch-handler",
+  "main": "./worker/index.ts",
   "compatibility_date": "2026-05-15",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Coleta de comentários + classificação a cada 15 minutos.
+  "triggers": { "crons": ["*/15 * * * *"] },
   "d1_databases": [
     {
       "binding": "DB",
@@ -22,6 +24,7 @@
     "CF_ACCESS_TEAM_DOMAIN": "shiny-fire-dd24.cloudflareaccess.com",
     "CF_ACCESS_AUD": "9603d0fda66c02e0d6ef2845294478e74a991340428557e3bf9bb6deabd55a10",
     "META_APP_ID": "1729049365059188",
-    "META_LOGIN_CONFIG_ID": "1721088988958270"
+    "META_LOGIN_CONFIG_ID": "1721088988958270",
+    "CLAUDE_MODEL": "claude-haiku-5-5"
   }
 }
