@@ -3,7 +3,7 @@
 // Nesta fase nada é executado na rede social: ação e resposta ficam registradas como sugestão.
 import {env} from 'cloudflare:workers';
 import {db} from '@/lib/db';
-import {CATEGORIES, CATEGORY_ACTION, TOPICS, POLICY, enforceChannel, enforceEmoji, looksPostPurchaseProblem, type Category} from '@/lib/brand/peliculas-facil';
+import {CATEGORIES, CATEGORY_ACTION, TOPICS, POLICY, enforceChannel, enforceEmoji, fillPlaceholders, looksPostPurchaseProblem, type Category} from '@/lib/brand/peliculas-facil';
 
 export {CATEGORIES};
 export const SENTIMENTS = ['positivo', 'neutro', 'negativo'] as const;
@@ -137,7 +137,7 @@ export function applyPolicy(o: Item, platform: string, text = '') {
   let priority = clean(o.priority, PRIORITIES, 'baixa');
   if (support || category === 'ambiguo') priority = 'alta';
   const topic = (TOPICS as readonly string[]).includes(String(o.topic).toLowerCase().trim()) ? String(o.topic).toLowerCase().trim() : 'outros';
-  let reply = action === 'responder' ? enforceEmoji(enforceChannel(String(o.suggested_reply || '').trim(), platform)).slice(0, 600) : '';
+  let reply = action === 'responder' ? enforceEmoji(enforceChannel(fillPlaceholders(String(o.suggested_reply || '').trim()), platform)).slice(0, 600) : '';
   if (/vamos verificar/i.test(reply)) {
     action = 'revisar';
     reply = '';

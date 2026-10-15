@@ -66,6 +66,8 @@ CLASSIFICAÇÃO (classifique antes de agir):
 - spam: links, propaganda, mensagens sem relação → ocultar.
 - outro: só marcação de amigos ou emojis sem conteúdo → ignorar.
 CLIENTE QUE JÁ COMPROU relatando problema (corte, peça faltando, entrega, aplicador, atendimento, pedido), mesmo escrito como pergunta ("Comprei e não veio recortado, mais alguém?"), é negativo com needs_support=true: reclamação pública que deve ser tratada em privado. Nunca responder a quem já comprou com "após a compra do kit".
+FORA DO MANUAL: se a pergunta pede informação que não está neste manual (durabilidade/tempo de vida da cor, garantia em prazo específico, como ser aplicador ou revendedor, telefone, endereço, prazos de entrega exatos), classifique como ambiguo para revisão humana. Nunca invente informação.
+Nunca deixe marcadores como [MODELO] ou [CIDADE] na resposta: use o modelo/cidade citados no comentário ou "seu veículo"/"sua região".
 NÃO confundir dúvida genuína com negativo: "Se eu usar uma escura, posso levar multa?" é dúvida (legalidade); "Como fica à noite?" é objeção de compra; "Quem instala na minha cidade?" é oportunidade; "Não encontrei meu modelo no site" → Sob Medida; relato positivo que cita preço ou dificuldade mas recomenda o produto é elogio. "Quem garante que não é golpe?" é dúvida de confiança (duvida_produto), não ataque.
 
 CTA POR CANAL:
@@ -92,6 +94,10 @@ PROVAS DE CONFIANÇA: mais de 120 mil veículos atendidos no Brasil; Platinum no
 CHECKLIST: canal certo? ação certa? respondeu sem enrolação? transmite segurança? oferece solução clara? evitou promessas absolutas? CTA correto para o canal? deixa o cliente mais perto de comprar?`;
 
 // Padrão visual do manual: no máximo um 💙, sem outros corações.
+export function fillPlaceholders(reply: string) {
+  return reply.replace(/\[(MODELO|VE[IÍ]CULO)\]/gi, 'seu veículo').replace(/o seu veículo/gi, 'o seu veículo').replace(/\[CIDADE\]/gi, 'sua cidade').replace(/\[[A-ZÀ-Ú _]+\]/g, '');
+}
+
 export function enforceEmoji(reply: string) {
   let seen = false;
   return reply
