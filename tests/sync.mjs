@@ -39,9 +39,18 @@ mockFetch=async(url,options={})=>{
 };
 // 1) Sem chave: coleta funciona, classificação fica pendente.
 let r=await sync.runSync('pf','manual');
-assert.equal(r.newComments,4);assert.equal(r.classified,0);assert.equal(r.status,'parcial');assert.ok(r.message.includes('Anthropic'));assert.equal(anthropicCalls,0);
+assert.equal(r.newComments,4);assert.equal(r.classified,0);assert.equal(r.status,'parcial');assert.ok(r.message.includes('Nenhuma IA'));assert.equal(anthropicCalls,0);
 const own=sql.prepare("SELECT id FROM social_comments WHERE is_own=1 ORDER BY id").all().map(x=>x.id);assert.deepEqual(own,['fb_own','ig_own']);
 assert.equal(sql.prepare("SELECT parent_id FROM social_comments WHERE id='ig_own'").get().parent_id,'ig_q2');
+// 1b) Modo gratuito: Workers AI classifica quando não há chave da Anthropic.
+let aiCalls=0;runtimeEnv.AI={async run(model,input){aiCalls++;assert.equal(model,'@cf/meta/llama-3.3-70b-instruct-fp8-fast');assert.equal(input.response_format.type,'json_schema');const ids=JSON.parse(input.messages[1].content.split('<comentarios>')[1].split('</comentarios>')[0]).map(c=>c.id);return {response:{itens:ids.map(id=>({id,category:'duvida',sentiment:'neutro',topic:'Preço do kit',summary:'s',priority:'baixa',suggested_action:'responder',confidence:0.8}))}};}};
+r=await sync.runSync('pf','cron');assert.equal(r.classified,2);assert.equal(aiCalls,1);assert.equal(r.status,'ok');
+assert.equal(sql.prepare("SELECT model FROM social_comments WHERE id='fb_q1'").get().model,'@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+// Cota gratuita esgotada: mensagem clara, coleta preservada.
+sql.exec("UPDATE social_comments SET classified_at=NULL");
+runtimeEnv.AI={async run(){throw new Error('4006: you have used up your daily free allocation of 10,000 neurons')}};
+r=await sync.runSync('pf','cron');assert.equal(r.status,'parcial');assert.ok(r.message.includes('Cota gratuita'));
+delete runtimeEnv.AI;
 // 2) Com chave: classifica só comentários de terceiros, sem reprocessar.
 runtimeEnv.ANTHROPIC_API_KEY='sk-test';
 r=await sync.runSync('pf','cron');assert.equal(r.newComments,0);assert.equal(r.classified,2);assert.equal(r.status,'ok');assert.equal(anthropicCalls,1);

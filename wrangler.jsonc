@@ -10,6 +10,8 @@
   "observability": { "enabled": true },
   // Coleta de comentários + classificação a cada 15 minutos.
   "triggers": { "crons": ["*/15 * * * *"] },
+  // IA gratuita da Cloudflare (cota diária). Se ANTHROPIC_API_KEY existir, o Claude é usado no lugar.
+  "ai": { "binding": "AI" },
   "d1_databases": [
     {
       "binding": "DB",

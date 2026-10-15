@@ -1,5 +1,5 @@
 import {ownerAccess, activeClient} from '@/lib/access';
-import {classifierConfigured} from '@/lib/classifier';
+import {classifierConfigured, classifierName} from '@/lib/classifier';
 import {loadInsights, parseFilters, PERIODS, NETWORKS, CATEGORY_LABEL, ACTION_LABEL, safeLink, type TopicRow, type Example} from '@/lib/insights';
 import RefreshButton from './refresh-button';
 export const dynamic = 'force-dynamic';
@@ -55,6 +55,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{dias?
   const {dias, rede} = parseFilters(await searchParams);
   const data = await loadInsights('pf', dias, rede);
   const hasKey = classifierConfigured();
+  const aiName = classifierName();
   const cat = (k: string) => data.byCategory.find(c => c.category === k)?.n || 0;
   const sentTotal = data.sentiment.positivo + data.sentiment.neutro + data.sentiment.negativo;
   const maxCat = Math.max(1, ...data.byCategory.map(c => c.n));
@@ -86,7 +87,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{dias?
         {' '}Coleta automática a cada 15 minutos · somente leitura, nenhuma resposta é enviada.
       </p>
 
-      {!hasKey && <div className="ix-alert" role="note"><strong>Classificação aguardando a chave da Anthropic.</strong> Os comentários já estão sendo coletados; os temas aparecem assim que a chave for cadastrada na Cloudflare.</div>}
+      {!hasKey && <div className="ix-alert" role="note"><strong>Classificação desativada.</strong> Os comentários já estão sendo coletados; os temas aparecem assim que uma IA for configurada.</div>}
 
       {!data.total ? (
         <section className="ix-card ix-empty"><h2>Sem comentários neste recorte</h2><p className="ix-muted">Clique em “Atualizar agora” para fazer a primeira coleta ou amplie o período.</p></section>
@@ -133,7 +134,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{dias?
               )}
             </section>
           </div>
-          {data.firstComment && <p className="ix-foot">Base coletada desde {day(data.firstComment).replace(/\.$/, '')}. Classificação feita por IA; confira os exemplos antes de decisões importantes.</p>}
+          {data.firstComment && <p className="ix-foot">Base coletada desde {day(data.firstComment).replace(/\.$/, '')}. Classificação feita por IA{aiName ? ` (${aiName})` : ''}; confira os exemplos antes de decisões importantes.</p>}
         </>
       )}
     </main>
