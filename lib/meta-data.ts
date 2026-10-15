@@ -36,7 +36,18 @@ export async function reader(){
   const r=await get<{data:{permission:string;status:string}[]}>('me/permissions');
   return {granted:r.data.filter(p=>p.status==='granted').map(p=>p.permission),declined:r.data.filter(p=>p.status!=='granted').map(p=>p.permission)};
  }
- return {get,pages,permissions};
+ // Escrita (responder/ocultar comentários). Usada somente pela fila de aprovação, após ação explícita do proprietário.
+ async function post<T>(path:string,params:Record<string,string>,accessToken:string):Promise<T>{
+  const url=new URL(`https://graph.facebook.com/${c.version}/${path}`);
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(c.secret!),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const proof=Array.from(new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(accessToken))),b=>b.toString(16).padStart(2,'0')).join('');
+  const body=new URLSearchParams({...params,appsecret_proof:proof});
+  let response:Response;try{response=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(15000)});}catch{throw new MetaReadError('A Meta demorou a responder. Nada foi confirmado; confira na rede antes de tentar de novo.');}
+  const out=await response.json() as T & {error?:{code?:number;error_subcode?:number;message?:string}};
+  if(!response.ok||out.error){const meta={code:out.error?.code,subcode:out.error?.error_subcode,message:out.error?.message};if(out.error?.code===190)throw new MetaReadError('A autorização da Meta não está válida. Conecte novamente.',meta);if(out.error?.code===10||out.error?.code===200)throw new MetaReadError('A Meta não liberou esta ação. Reconecte a Meta aceitando as permissões de comentários.',meta);throw new MetaReadError('A Meta recusou a ação.',meta);}
+  return out;
+ }
+ return {get,pages,permissions,post};
 }
 const count=(n:unknown)=>typeof n==='number'?n:null;
 export async function importPage(page:PageAccount,api:Awaited<ReturnType<typeof reader>>):Promise<Snapshot>{

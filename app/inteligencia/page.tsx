@@ -68,7 +68,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{dias?
   return (
     <main className="ix">
       <header className="ix-top">
-        <a href="/" className="ix-crumb">← Painel</a>
+        <div style={{display: 'flex', gap: 20}}><a href="/" className="ix-crumb">← Painel</a><a href="/aprovacao" className="ix-crumb">Fila de aprovação →</a></div>
         <img src="/origyn-logo.png" alt="Origyn" className="ix-logo" />
       </header>
 
