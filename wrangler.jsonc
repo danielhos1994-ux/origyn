@@ -12,7 +12,7 @@
     {
       "binding": "DB",
       "database_name": "origyn-db",
-      "database_id": "PREENCHER_D1_ID",
+      "database_id": "40a93313-a135-4924-8be0-408140197ead",
       "migrations_dir": "drizzle"
     }
   ],
