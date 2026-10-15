@@ -19,8 +19,8 @@
   "vars": {
     "APP_ORIGIN": "https://origyn.daniel-hos1994.workers.dev",
     "OWNER_EMAIL": "daniel.hos1994@gmail.com",
-    "CF_ACCESS_TEAM_DOMAIN": "PREENCHER_TEAM.cloudflareaccess.com",
-    "CF_ACCESS_AUD": "PREENCHER_AUD",
+    "CF_ACCESS_TEAM_DOMAIN": "shiny-fire-dd24.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "9603d0fda66c02e0d6ef2845294478e74a991340428557e3bf9bb6deabd55a10",
     "META_APP_ID": "1729049365059188",
     "META_LOGIN_CONFIG_ID": "1721088988958270"
   }
