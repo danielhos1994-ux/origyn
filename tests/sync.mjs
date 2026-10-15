@@ -65,7 +65,7 @@ assert.equal(sql.prepare('SELECT COUNT(*) n FROM social_comments').get().n,5);
 sql.exec("UPDATE social_posts SET created_at='2026-01-01T00:00:00.000Z'");
 const before=metaCalls.length;
 mockFetch=((orig)=>async(url,o)=>{const u=new URL(url);if(u.pathname.endsWith('/posts'))return Response.json({data:[{id:'555_1',message:'Post FB',created_time:'2026-01-01T00:00:00Z',reactions:{summary:{total_count:5}},comments:{summary:{total_count:3}}}]});if(u.pathname.endsWith('/media'))return Response.json({data:[{id:'777',caption:'Post IG',timestamp:'2026-01-01T00:00:00Z',like_count:3,comments_count:1}]});return orig(url,o);})(mockFetch);
-r=await sync.runSync('pf','cron');assert.equal(r.newComments,0);assert.ok(!metaCalls.slice(before).some(p=>p.includes('comments')));
+r=await sync.runSync('pf','cron');assert.equal(r.newComments,0);assert.ok(metaCalls.slice(before).some(p=>p.includes('comments')),'posts mais novos sempre relidos');
 // 5) Erro da IA não quebra a coleta; trava evita execuções simultâneas.
 sql.exec("UPDATE social_comments SET classified_at=NULL WHERE id='fb_q1'");
 const okFetch=mockFetch;mockFetch=async(url,o)=>new URL(url).origin==='https://api.anthropic.com'?Response.json({error:{type:'overloaded_error',message:'Overloaded'}},{status:529}):okFetch(url,o);

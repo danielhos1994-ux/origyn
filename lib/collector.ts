@@ -6,6 +6,9 @@ import {reader, selectedData, MetaReadError, metaDetail} from '@/lib/meta-data';
 const POSTS_PER_NETWORK = 25;
 const COMMENT_PAGES = 3;
 const RECENT_MS = 3 * 86400000;
+// Os posts mais novos têm os comentários relidos a cada rodada, mesmo sem mudança na contagem
+// (a Meta às vezes atualiza o contador com atraso).
+const ALWAYS_REFRESH = 8;
 
 type Api = Awaited<ReturnType<typeof reader>>;
 export type CollectResult = {posts: number; newComments: number; warnings: string[]};
@@ -16,13 +19,14 @@ const iso = (v: string) => {
 };
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
-async function upsertPost(tenant: string, p: {id: string; platform: string; text: string; permalink?: string; createdAt: string; reactions: number | null; commentsCount: number | null}) {
+async function upsertPost(tenant: string, p: {id: string; platform: string; text: string; permalink?: string; createdAt: string; reactions: number | null; commentsCount: number | null}, rank = 99) {
   const prev = await db().prepare('SELECT comments_count, updated_at FROM social_posts WHERE tenant=? AND id=?').bind(tenant, p.id).first<{comments_count: number | null; updated_at: number}>();
   await db()
     .prepare('INSERT INTO social_posts(tenant,id,platform,text,permalink,created_at,reactions,comments_count,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(tenant,id) DO UPDATE SET text=excluded.text,permalink=excluded.permalink,reactions=excluded.reactions,comments_count=excluded.comments_count,updated_at=excluded.updated_at')
     .bind(tenant, p.id, p.platform, p.text, p.permalink ?? null, p.createdAt, p.reactions, p.commentsCount, Date.now())
     .run();
   // Busca comentários só quando há novidade: post novo, contagem mudou ou post recente.
+  if (rank < ALWAYS_REFRESH) return true;
   if (!p.commentsCount) return false;
   if (!prev) return true;
   if (prev.comments_count !== p.commentsCount) return true;
@@ -69,9 +73,9 @@ export async function collect(tenant = 'pf'): Promise<CollectResult> {
       {fields: 'id,message,created_time,permalink_url,reactions.limit(0).summary(total_count),comments.limit(0).summary(true)', limit: String(POSTS_PER_NETWORK)},
       token,
     );
-    for (const p of feed.data) {
+    for (const [rank, p] of feed.data.entries()) {
       posts++;
-      const fetchComments = await upsertPost(tenant, {id: p.id, platform: 'Facebook', text: p.message || '', permalink: p.permalink_url, createdAt: iso(p.created_time), reactions: num(p.reactions?.summary?.total_count), commentsCount: num(p.comments?.summary?.total_count)});
+      const fetchComments = await upsertPost(tenant, {id: p.id, platform: 'Facebook', text: p.message || '', permalink: p.permalink_url, createdAt: iso(p.created_time), reactions: num(p.reactions?.summary?.total_count), commentsCount: num(p.comments?.summary?.total_count)}, rank);
       if (!fetchComments) continue;
       try {
         const comments = await paged<{id: string; message?: string; from?: {id?: string; name?: string}; created_time: string; parent?: {id: string}}>(api, p.id + '/comments', {fields: 'id,message,from{id,name},created_time,parent{id}', filter: 'stream', order: 'reverse_chronological', limit: '100'}, token);
@@ -92,9 +96,9 @@ export async function collect(tenant = 'pf'): Promise<CollectResult> {
   if (ig) {
     try {
       const media = await api.get<{data: {id: string; caption?: string; timestamp: string; permalink?: string; like_count?: number; comments_count?: number}[]}>(ig.id + '/media', {fields: 'id,caption,timestamp,permalink,like_count,comments_count', limit: String(POSTS_PER_NETWORK)}, token);
-      for (const m of media.data) {
+      for (const [rank, m] of media.data.entries()) {
         posts++;
-        const fetchComments = await upsertPost(tenant, {id: m.id, platform: 'Instagram', text: m.caption || '', permalink: m.permalink, createdAt: iso(m.timestamp), reactions: num(m.like_count), commentsCount: num(m.comments_count)});
+        const fetchComments = await upsertPost(tenant, {id: m.id, platform: 'Instagram', text: m.caption || '', permalink: m.permalink, createdAt: iso(m.timestamp), reactions: num(m.like_count), commentsCount: num(m.comments_count)}, rank);
         if (!fetchComments) continue;
         try {
           type IgComment = {id: string; text?: string; username?: string; timestamp: string; from?: {id?: string; username?: string}; replies?: {data: IgComment[]}};
