@@ -10,7 +10,7 @@
     "build": "vinext build",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "deploy": "wrangler d1 migrations apply DB --remote --config wrangler.jsonc && wrangler deploy",
+    "deploy": "wrangler d1 migrations apply DB --remote --config wrangler.jsonc && wrangler deploy && node tools/ensure-secret.mjs",
     "test": "node tests/auth.mjs && node tests/access.mjs && node tests/meta.mjs"
   },
   "dependencies": {
