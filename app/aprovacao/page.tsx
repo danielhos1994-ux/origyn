@@ -1,5 +1,5 @@
 import {ownerAccess, activeClient} from '@/lib/access';
-import {loadQueue, MAX_ACTIONS_PER_HOUR} from '@/lib/moderation';
+import {loadQueue, MAX_ACTIONS_PER_HOUR, QUEUE_MAX_AGE_DAYS} from '@/lib/moderation';
 import Queue, {DoneList} from './queue';
 export const dynamic = 'force-dynamic';
 export const metadata = {title: 'Fila de aprovação | Origyn'};
@@ -27,7 +27,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{ver?:
           <a href="/aprovacao?ver=concluidos" aria-current={view === 'concluidos' ? 'true' : undefined}>Concluídos · {q.concluidos}</a>
         </div>
       </nav>
-      <p className="ix-status">Ordenado por prioridade. Limite de segurança: {MAX_ACTIONS_PER_HOUR} ações por hora. Sem DMs: apenas respostas públicas e ocultação de comentários.</p>
+      <p className="ix-status">Ordenado por prioridade. Só entram comentários dos últimos {QUEUE_MAX_AGE_DAYS} dias. Limite de segurança: {MAX_ACTIONS_PER_HOUR} ações por hora. Sem DMs: apenas respostas públicas e ocultação de comentários.</p>
       {view === 'pendentes' ? <Queue initial={q.items} /> : <DoneList items={q.items} />}
     </main>
   );

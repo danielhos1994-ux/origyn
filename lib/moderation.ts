@@ -4,6 +4,8 @@ import {db} from '@/lib/db';
 import {reader, selectedData, MetaReadError, metaDetail} from '@/lib/meta-data';
 
 export const MAX_ACTIONS_PER_HOUR = 30;
+// Comentários mais antigos que isso não entram na fila: responder tarde demais prejudica a marca.
+export const QUEUE_MAX_AGE_DAYS = 30;
 const FB_FORBIDDEN = /\b(dm|direct|messenger|inbox)\b|link (da|na) bio/i;
 
 export type QueueItem = {
@@ -14,14 +16,15 @@ export type QueueItem = {
 };
 
 export async function loadQueue(tenant: string, view: 'pendentes' | 'concluidos') {
+  const since = new Date(Date.now() - QUEUE_MAX_AGE_DAYS * 86400000).toISOString();
   const where = view === 'pendentes'
-    ? "c.handled_status IS NULL AND c.classified_at IS NOT NULL AND c.suggested_action IN ('responder','ocultar','revisar')"
+    ? `c.handled_status IS NULL AND c.classified_at IS NOT NULL AND c.suggested_action IN ('responder','ocultar','revisar') AND c.created_at>='${since}'`
     : 'c.handled_status IS NOT NULL';
   const order = view === 'pendentes'
     ? "CASE c.priority WHEN 'alta' THEN 0 WHEN 'media' THEN 1 ELSE 2 END, c.created_at DESC"
     : 'c.handled_at DESC';
   const rows = await db().prepare(`SELECT c.id,c.platform,c.text,c.author_name author,c.created_at date,p.permalink,c.category,c.topic,c.suggested_action action,c.suggested_reply reply,c.priority,c.needs_support support,c.parent_id,c.handled_status,c.handled_at,c.handled_reply,c.handled_error FROM social_comments c LEFT JOIN social_posts p ON p.tenant=c.tenant AND p.id=c.post_id WHERE c.tenant=? AND c.is_own=0 AND ${where} ORDER BY ${order} LIMIT 100`).bind(tenant).all<QueueItem>();
-  const counts = await db().prepare("SELECT SUM(CASE WHEN handled_status IS NULL AND classified_at IS NOT NULL AND suggested_action IN ('responder','ocultar','revisar') THEN 1 ELSE 0 END) pendentes, SUM(CASE WHEN handled_status IS NOT NULL THEN 1 ELSE 0 END) concluidos FROM social_comments WHERE tenant=? AND is_own=0").bind(tenant).first<{pendentes: number | null; concluidos: number | null}>();
+  const counts = await db().prepare("SELECT SUM(CASE WHEN handled_status IS NULL AND classified_at IS NOT NULL AND suggested_action IN ('responder','ocultar','revisar') AND created_at>=? THEN 1 ELSE 0 END) pendentes, SUM(CASE WHEN handled_status IS NOT NULL THEN 1 ELSE 0 END) concluidos FROM social_comments WHERE tenant=? AND is_own=0").bind(since, tenant).first<{pendentes: number | null; concluidos: number | null}>();
   return {items: rows.results, pendentes: counts?.pendentes || 0, concluidos: counts?.concluidos || 0};
 }
 
