@@ -1,0 +1,27 @@
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import ts from 'typescript';
+const env={CF_ACCESS_TEAM_DOMAIN:'origyn.cloudflareaccess.com',CF_ACCESS_AUD:'aud-123'};
+let reqHeaders=new Headers();let certs={keys:[]};let certFetches=0;
+const m={exports:{}};
+const code=ts.transpileModule(readFileSync('app/auth.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+vm.runInNewContext(`(function(require,module,exports){${code}\n})`,{crypto,atob,TextEncoder,TextDecoder,Uint8Array,Date,JSON,AbortSignal,Math,fetch:async(url)=>{certFetches++;assert.equal(url,'https://origyn.cloudflareaccess.com/cdn-cgi/access/certs');return Response.json(certs);}})(id=>id==='cloudflare:workers'?{env}:id==='next/headers'?{headers:async()=>reqHeaders}:null,m,m.exports);
+const {getUser}=m.exports;
+const b64u=b=>Buffer.from(b).toString('base64url');
+const kp=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
+const other=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
+certs={keys:[{...(await crypto.subtle.exportKey('jwk',kp.publicKey)),kid:'k1'}]};
+async function jwt(payload,key=kp.privateKey,kid='k1'){const h=b64u(JSON.stringify({alg:'RS256',kid})),p=b64u(JSON.stringify(payload));const s=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,new TextEncoder().encode(h+'.'+p));return h+'.'+p+'.'+b64u(new Uint8Array(s));}
+const now=Math.floor(Date.now()/1000),good={email:'Daniel@Example.com',sub:'u1',aud:['aud-123'],iss:'https://origyn.cloudflareaccess.com',exp:now+600,nbf:now-5};
+const as=async t=>{reqHeaders=new Headers(t?{'cf-access-jwt-assertion':t,host:'origyn.example.workers.dev'}:{host:'origyn.example.workers.dev'});return getUser();};
+const u=await as(await jwt(good));assert.equal(u.email,'daniel@example.com');assert.equal(u.userId,'access:u1');
+assert.equal(await as(null),null);
+assert.equal(await as(await jwt({...good,aud:['other']})),null);
+assert.equal(await as(await jwt({...good,iss:'https://evil.cloudflareaccess.com'})),null);
+assert.equal(await as(await jwt({...good,exp:now-120})),null);
+assert.equal(await as(await jwt(good,other.privateKey)),null);
+const t=await jwt(good);assert.equal(await as(t.slice(0,-4)+'AAAA'),null);
+reqHeaders=new Headers({'cf-access-authenticated-user-email':'daniel@example.com',host:'origyn.example.workers.dev'});assert.equal(await getUser(),null);
+env.ORIGYN_DEV_USER_EMAIL='dev@example.com';assert.equal(await as(null),null);reqHeaders=new Headers({host:'localhost:5173'});assert.equal((await getUser()).email,'dev@example.com');
+console.log('PASS: Access JWT signature, issuer, audience, expiry, tampering, forged header rejection and localhost-only dev user.');

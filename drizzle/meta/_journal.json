@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790629787796,
+      "tag": "0000_glamorous_lockheed",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790630916762,
+      "tag": "0001_talented_sugar_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790795319031,
+      "tag": "0002_useful_phalanx",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790805665919,
+      "tag": "0003_eager_ben_urich",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790806308769,
+      "tag": "0004_kind_hedge_knight",
+      "breakpoints": true
+    }
+  ]
+}

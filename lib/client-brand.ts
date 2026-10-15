@@ -1,0 +1,4 @@
+export type Status = 'pendente' | 'respondido' | 'ocultado' | 'revisao';
+export type Comment = {id:string; tenant:string; name:string; handle:string; text:string; topic:string; category:string; date:string; post:number; status:Status; suggestion:string; response?:string};
+export const tenants = [{id:'pf',name:'Películas Fácil',initials:'PF',handle:'@peliculasfacil',color:'#418bff',logo:'/peliculas-facil-logo.png',followers:null},{id:'lab',name:'Origyn • Laboratório',initials:'OG',handle:'Ambiente de testes',color:'#a340f1',logo:'/origyn-logo.png',followers:null}];
+export function inPeriod(date:string,period:string,from:string,to:string){const d=date.slice(0,10);if(period==='all')return true;if(period==='custom')return (!from||d>=from)&&(!to||d<=to);const end=new Date('2026-09-28T12:00:00Z');end.setUTCDate(end.getUTCDate()-Number(period)+1);return d>=end.toISOString().slice(0,10)&&d<='2026-09-28';}

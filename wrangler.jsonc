@@ -1,0 +1,27 @@
+{
+  // Configuração da hospedagem Origyn na Cloudflare (Workers + D1).
+  // Valores secretos NÃO ficam aqui: META_TOKEN_ENCRYPTION_KEY é cadastrada como
+  // segredo no painel da Cloudflare (Workers > origyn > Settings > Variables and Secrets).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "origyn",
+  "main": "vinext/server/fetch-handler",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "origyn-db",
+      "database_id": "PREENCHER_D1_ID",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "vars": {
+    "APP_ORIGIN": "PREENCHER_URL",
+    "OWNER_EMAIL": "daniel.hos1994@gmail.com",
+    "CF_ACCESS_TEAM_DOMAIN": "PREENCHER_TEAM.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "PREENCHER_AUD",
+    "META_APP_ID": "1729049365059188",
+    "META_LOGIN_CONFIG_ID": "1721088988958270"
+  }
+}

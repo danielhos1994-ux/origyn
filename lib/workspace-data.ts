@@ -1,0 +1,3 @@
+import {db} from '@/lib/db';
+import {seed,posts,defaultManual} from '@/lib/demo';
+export async function workspaceData(tenant:string){const database=db();const [states,logs,manual]=await Promise.all([database.prepare('SELECT comment_id AS id,status,response FROM comment_state WHERE tenant=?').bind(tenant).all(),database.prepare('SELECT * FROM audit WHERE tenant=? ORDER BY created_at DESC LIMIT 200').bind(tenant).all(),database.prepare('SELECT content FROM manuals WHERE tenant=?').bind(tenant).first<{content:string}>()]);return {comments:seed.filter(c=>c.tenant===tenant),posts:tenant==='pf'?posts:[],states:states.results,logs:logs.results,manual:manual?.content??(tenant==='pf'?defaultManual:'Defina aqui as orientações deste cliente de teste.')};}
