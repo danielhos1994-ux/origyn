@@ -17,7 +17,7 @@
     }
   ],
   "vars": {
-    "APP_ORIGIN": "PREENCHER_URL",
+    "APP_ORIGIN": "https://origyn.daniel-hos1994.workers.dev",
     "OWNER_EMAIL": "daniel.hos1994@gmail.com",
     "CF_ACCESS_TEAM_DOMAIN": "PREENCHER_TEAM.cloudflareaccess.com",
     "CF_ACCESS_AUD": "PREENCHER_AUD",
