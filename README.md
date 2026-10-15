@@ -1,5 +1,9 @@
 # Origyn
 
+## Escopo da automação (decisão de 15/10/2026)
+- Somente **comentários** do Instagram e do Facebook: leitura, classificação, resposta e ocultação.
+- **Sem DMs.** Não implementar leitura nem envio de mensagens diretas, nem pedir permissões de mensagens (`pages_messaging`, `instagram_manage_messages`).
+
 ## Hospedagem (desde 15/10/2026)
 Cloudflare Workers + D1 na conta do proprietário, publicado a partir deste repositório (Workers Builds).
 - Build: `pnpm build` · Deploy: `pnpm run deploy` (aplica migrações D1 e publica).
