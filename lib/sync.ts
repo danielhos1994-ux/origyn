@@ -10,6 +10,8 @@ export type SyncSummary = {status: 'ok' | 'parcial' | 'erro' | 'ignorado'; newCo
 
 export async function runSync(tenant = 'pf', trigger: 'cron' | 'manual' = 'cron'): Promise<SyncSummary> {
   const now = Date.now();
+  // Rodadas interrompidas (ex.: aba fechada) não ficam presas como 'executando'.
+  await db().prepare("UPDATE sync_runs SET status='interrompida',finished_at=? WHERE tenant=? AND status='executando' AND started_at<=?").bind(now, tenant, now - LOCK_MS).run();
   const running = await db().prepare("SELECT id FROM sync_runs WHERE tenant=? AND status='executando' AND started_at>?").bind(tenant, now - LOCK_MS).first();
   if (running) return {status: 'ignorado', newComments: 0, classified: 0, message: 'Já existe uma atualização em andamento.'};
   const id = crypto.randomUUID();

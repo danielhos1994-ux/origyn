@@ -149,6 +149,8 @@ export async function classifyPending(tenant = 'pf', limit = DEFAULT_LIMIT): Pro
   const p = provider();
   if (!p) return {classified: 0, skipped: 'Nenhuma IA configurada para classificar.', errors: []};
   const batchSize = p.kind === 'claude' ? BATCH : 10;
+  // A IA gratuita é mais lenta: menos itens por rodada para cada atualização terminar rápido.
+  if (p.kind === 'workers-ai') limit = Math.min(limit, 20);
   const rows = await db()
     .prepare('SELECT c.id,c.platform,c.text,c.author_name,c.parent_id,p.text AS post_text FROM social_comments c LEFT JOIN social_posts p ON p.tenant=c.tenant AND p.id=c.post_id WHERE c.tenant=? AND c.is_own=0 AND c.classified_at IS NULL ORDER BY c.created_at DESC LIMIT ?')
     .bind(tenant, limit)
